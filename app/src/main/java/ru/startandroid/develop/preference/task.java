@@ -1,11 +1,15 @@
 package ru.startandroid.develop.preference;
 
+import android.app.AlarmManager;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -15,6 +19,7 @@ import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.PersistableBundle;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
@@ -269,20 +274,62 @@ public class task extends AppCompatActivity {
         LocalDateTime currentDateTime = LocalDateTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-        // Определение разницы во времени между текущим временем и выбранным временем
+// Определение разницы во времени между текущим временем и выбранным временем
         LocalDateTime selectedDateTime = LocalDateTime.parse(dateTime, formatter);
         long delayInMillis = java.time.Duration.between(currentDateTime, selectedDateTime).toMillis();
 
-        // Планирование задачи ожидания до времени dateTime
-        Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                // Код, который будет выполнен после ожидания
-                sendNotif(header, content, rowId);
-            }
-        }, delayInMillis);
+// Создание компонента компоновщика задач
+        ComponentName componentName = new ComponentName(getApplicationContext(), NotificationJobService.class);
+
+// Создание данных для передачи в задачу
+        PersistableBundle extras = new PersistableBundle();
+        extras.putString("header", header);
+        extras.putString("content", content);
+        extras.putLong("rowId", rowId);
+
+// Создание задачи для выполнения
+        JobInfo jobInfo = new JobInfo.Builder(1, componentName)
+                .setMinimumLatency(delayInMillis)
+                .setExtras(extras)
+                .build();
+
+// Запуск задачи в JobScheduler
+        JobScheduler jobScheduler = (JobScheduler) getSystemService(JOB_SCHEDULER_SERVICE);
+        jobScheduler.schedule(jobInfo);
     }
+
+//    private void addRecordToDatabase(String header, String content, int selectedYear, int selectedMonth, int selectedDay, int selectedHour, int selectedMinute) {
+//        // Форматирование выбранной даты и времени
+//        String dateTime = String.format(Locale.getDefault(), "%04d-%02d-%02d %02d:%02d:00", selectedYear, selectedMonth + 1, selectedDay, selectedHour, selectedMinute);
+//
+//        // Добавляем запись в базу данных
+//        ContentValues values = new ContentValues();
+//        values.put(COLUMN_HEADER, header);
+//        values.put(COLUMN_CONTENT, content);
+//        values.put(COLUMN_TIME, dateTime);
+//        long rowId = database.insert(TABLE_NAME, null, values);
+//
+//        displayDataInTableLayout();
+//
+//        preNotif(header, content, dateTime, rowId);
+//        // Определение текущей даты и времени
+//        LocalDateTime currentDateTime = LocalDateTime.now();
+//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+//
+//        // Определение разницы во времени между текущим временем и выбранным временем
+//        LocalDateTime selectedDateTime = LocalDateTime.parse(dateTime, formatter);
+//        long delayInMillis = java.time.Duration.between(currentDateTime, selectedDateTime).toMillis();
+//
+//        // Планирование задачи ожидания до времени dateTime
+//        Handler handler = new Handler();
+//        handler.postDelayed(new Runnable() {
+//            @Override
+//            public void run() {
+//                // Код, который будет выполнен после ожидания
+//                sendNotif(header, content, rowId);
+//            }
+//        }, delayInMillis);
+//    }
 
     private void preNotif(String header, String content, String dateTime, long rowId) {
         // Создаем намерение для запуска активити с отображением уведомления
